@@ -65,10 +65,36 @@ $conn->close();
         body { font-family: sans-serif; background-color: #d9d9d9; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
         .container { background-color: #fff; padding: 40px; border-radius: 5px; width: 400px; text-align: center; }
         input[type="text"], input[type="password"] { width: 100%; padding: 12px; margin: 8px 0; display: inline-block; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; background-color: #e6e6e6; }
-        .btn-login { background-color: #b3b3b3; color: white; padding: 14px 20px; margin: 8px 0; border: none; border-radius: 4px; cursor: pointer; width: 100%; font-size: 16px; font-weight: bold; }
-        .btn-register { background-color: #b3b3b3; color: white; padding: 14px 20px; margin-top: 20px; border: none; border-radius: 4px; cursor: pointer; width: 100%; font-size: 16px; font-weight: bold; }
+        .btn-login { background-color: #ff5117; color: white; padding: 14px 20px; margin: 8px 0; border: 2px solid #ff5117; border-radius: 4px; cursor: pointer; width: 100%; font-size: 16px; font-weight: bold; }
+        .btn-register { background-color: #fff; color: #ff5117; padding: 14px 20px; margin-top: 20px; border: 2px solid #ff5117; border-radius: 4px; cursor: pointer; width: 100%; font-size: 16px; font-weight: bold; }
         .register-link { margin-top: 15px; display: block; text-align: left; }
         .error { padding: 10px; margin-bottom: 15px; border-radius: 4px; background-color: #fdd; color: #a00; border: 1px solid #a00; }
+
+        /* CSS -- ĐĂNG NHẬP HỆ THỐNG */
+        h2 {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ff5117;
+            margin-bottom: 30px;
+            text-align: center;
+            text-transform: uppercase;
+        }
+
+        /* Button -- ĐĂNG NHẬP (Hover) */
+        .btn-login:hover {
+            /* transform: translateY(-4px);
+            box-shadow: 0 4px 8px #0000001a; */
+            background-color: #fff;
+            color: #ff5117;
+            border: 2px solid #ff5117;
+        }
+
+        /* Button -- ĐĂNG KÝ TÀI KHOẢN (Hover) */
+        .btn-register:hover {
+            background-color: #ff5117;
+            color: #fff;
+            border: 2px solid #ff5117;
+        }
     </style>
 </head>
 <body>
