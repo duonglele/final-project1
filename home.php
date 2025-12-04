@@ -154,7 +154,7 @@ $result = $conn->query("
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
-<title>Quản lý sản phẩm</title>
+<title class = "title">Quản lý sản phẩm</title>
 <style>
     body {
         font-family: Arial, sans-serif;
@@ -173,6 +173,7 @@ $result = $conn->query("
     h2 {
         text-align: center;
         margin-bottom: 20px;
+        color: #ff5117;
     }
     form {
         display: flex;
@@ -193,7 +194,7 @@ $result = $conn->query("
         background: #f0f0f0;
     }
     .btn {
-        background-color: #999;
+        background-color: #58bc39;
         color: white;
         border: none;
         padding: 10px 16px;
@@ -201,7 +202,10 @@ $result = $conn->query("
         cursor: pointer;
         font-weight: bold;
     }
-    .btn:hover { background-color: #777; }
+    .btn:hover { 
+        /* background-color: #777;  */
+        opacity: .8;
+    }
     table {
         width: 100%;
         border-collapse: collapse;
@@ -228,6 +232,10 @@ $result = $conn->query("
         font-weight: bold;
     }
     .actions a:hover { text-decoration: underline; }
+
+    .head-product {
+        background-color: 
+    }
 </style>
 </head>
 <body>
@@ -255,7 +263,7 @@ $result = $conn->query("
 
     <!-- Bảng sản phẩm -->
     <table>
-        <tr>
+        <tr class = "head-product">
             <th>ID</th>
             <th>Ảnh</th>
             <th>Tên sản phẩm</th>
