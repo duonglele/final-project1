@@ -80,7 +80,7 @@ $conn->close();
         h2 {
             font-size: 24px;
             font-weight: bold;
-            color: #333;
+            color: #ff5117;
             margin-bottom: 30px;
             text-align: center;
             text-transform: uppercase;
@@ -103,11 +103,11 @@ $conn->close();
             color: #888;
         }
         button {
-            background-color: #b3b3b3;
+            background-color: #ff5117;
             color: white;
             padding: 14px 20px;
             margin-top: 10px;
-            border: none;
+            border: 2px solid #ff5117;
             border-radius: 4px;
             cursor: pointer;
             width: 100%;
@@ -116,7 +116,8 @@ $conn->close();
             text-transform: uppercase;
         }
         button:hover {
-            background-color: #a0a0a0;
+            background-color: #fff;
+            color: #ff5117;
         }
         .message {
             padding: 10px;
