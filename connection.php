@@ -3,7 +3,7 @@ $servername = "127.0.0.1";   // hoặc có thể dùng localhost
 $username = "root";          // tài khoản mặc định của Laragon
 $password = "";              // mật khẩu trống
 $dbname = "user_db";         // tên database đã tạo trong MySQL
-$port = 3307;                // cổng của MySQL trong Laragon
+$port = 3306;                // cổng của MySQL trong Laragon
 
 // Kết nối đến MySQL
 $conn = new mysqli($servername, $username, $password, $dbname, $port);
