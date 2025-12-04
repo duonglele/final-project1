@@ -88,7 +88,7 @@ $conn->close();
         input[type="text"],
         input[type="email"],
         input[type="password"] {
-            width: calc(100% - 24px);
+            width: calc(100%);
             padding: 12px;
             margin-bottom: 15px;
             display: block;
@@ -145,6 +145,7 @@ $conn->close();
         }
         .login-link a:hover {
             text-decoration: underline;
+            color: #ff5117;
         }
     </style>
 </head>
