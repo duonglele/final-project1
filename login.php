@@ -73,7 +73,7 @@ $conn->close();
 </head>
 <body>
     <div class="container">
-        <h2>Trang Chính</h2>
+        <h2>ĐĂNG NHẬP HỆ THỐNG</h2>
 
         <?php if ($error): ?>
             <div class="error"><?php echo $error; ?></div>
