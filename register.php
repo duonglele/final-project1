@@ -8,20 +8,25 @@ $username = '';
 $email = '';
 $phone = '';
 
+// ADMIN KEY: Dùng để xác nhận khi tạo tài khoản ADMIN
+$ADMIN_KEY = "ADMINKEY";
+
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $username = trim($_POST['username']);
     $email = trim($_POST['email']);
     $phone = trim($_POST['phone']);
     $password = $_POST['password'];
     $confirm_password = $_POST['confirm_password'];
+    $admin_key_input = trim($_POST['admin_key'] ?? '');   // <-- Lấy KEY từ form
 
     if (empty($username) || empty($email) || empty($password) || empty($confirm_password)) {
-        $error = "Vui lòng điền đầy đủ tất cả các trường.";
+        $error = "Vui lòng điền đầy đủ thông tin    .";
     } elseif ($password !== $confirm_password) {
         $error = "Mật khẩu xác nhận không khớp.";
     } elseif (strlen($password) < 6) {
         $error = "Mật khẩu phải có ít nhất 6 ký tự.";
     } else {
+        //Kiểm tra username hoặc email đã tồn tại
         $sql = "SELECT id FROM users WHERE username = ? OR email = ?";
         $stmt = $conn->prepare($sql);
         $stmt->bind_param("ss", $username, $email);
@@ -31,11 +36,22 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         if ($stmt->num_rows > 0) {
             $error = "Username hoặc Email đã được sử dụng.";
         } else {
+
+            //===========================================
+            //==========XÁC ĐỊNH QUYỀN TÀI KHOẢN=========
+            //===========================================
+            $role = "user"; //Mặc định tài khoản sẽ là user
+            if (!empty($admin_key_input) && $admin_key_input == $ADMIN_KEY) {
+                $role = "admin";
+            }
+
+            //Mã hoá mật khẩu
             $hashed_password = password_hash($password, PASSWORD_DEFAULT);
 
-            $insert_sql = "INSERT INTO users (username, email, phone, password) VALUES (?, ?, ?, ?)";
+            //Insert user
+            $insert_sql = "INSERT INTO users (username, email, phone, password, role) VALUES (?, ?, ?, ?, ?)";
             $insert_stmt = $conn->prepare($insert_sql);
-            $insert_stmt->bind_param("ssss", $username, $email, $phone, $hashed_password);
+            $insert_stmt->bind_param("sssss", $username, $email, $phone, $hashed_password, $role);
 
             if ($insert_stmt->execute()) {
                 //  THÊM PHẦN NÀY: Chuyển hướng về trang đăng nhập sau khi đăng ký thành công
@@ -168,6 +184,7 @@ $conn->close();
             <input type="text" name="phone" placeholder="Số điện thoại" value="<?php echo htmlspecialchars($phone); ?>">
             <input type="password" name="password" placeholder="Mật khẩu" required>
             <input type="password" name="confirm_password" placeholder="Xác nhận lại mật khẩu" required>
+            <input type="text" name="admin_key" placeholder="Nhập ADMIN KEY (nếu có)">
             <button type="submit">ĐĂNG KÝ</button>
         </form>
 
