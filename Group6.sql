@@ -9,6 +9,7 @@ DROP TABLE IF EXISTS products;
 DROP TABLE IF EXISTS categories;
 DROP TABLE IF EXISTS users;
 
+-- Bảng quản lý tài khoản (tài khoản admin và user)
 CREATE TABLE users (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(50) NOT NULL UNIQUE,
@@ -17,6 +18,8 @@ CREATE TABLE users (
     password VARCHAR(255) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+-- Tạo thêm phân quyền tài khoản (admin, user)
+    ALTER TABLE users ADD role ENUM('admin','user') NOT NULL DEFAULT 'user';
 
 CREATE TABLE categories (
     id INT AUTO_INCREMENT PRIMARY KEY,
