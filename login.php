@@ -20,8 +20,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if (empty($username) || empty($password)) {
         $error = "Vui lòng nhập Username và Mật khẩu.";
     } else {
-        // 2. Truy vấn người dùng
-        $sql = "SELECT id, username, password FROM users WHERE username = ? OR email = ?";
+
+        // 2. Truy vấn người dùng -- LẤY CẢ ROLE
+        $sql = "SELECT id, username, password, role FROM users WHERE username = ? OR email = ?";
         $stmt = $conn->prepare($sql);
         $stmt->bind_param("ss", $username, $username);
         $stmt->execute();
@@ -38,11 +39,34 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 // Nếu mật khẩu lưu dạng thường -> so sánh trực tiếp
                 ($password === $hashedPassword)
             ) {
+
                 // Đăng nhập thành công
+
+                //Lưu thông tin cơ bản vào session
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['username'] = $user['username'];
-                header("Location: home.php");
+                $_SESSION['role'] = $user['role']; //Lưu phân quyền tài khoản vào session
+
+                //======Lưu role vào cookie 7 ngày=====
+                setcookie(
+                    "user_role",
+                    $user['role'],
+                    time() + (7 * 24 * 60 * 60), //7 ngày
+                    "/",
+                    "",
+                    false,
+                    true //httponly --> giúp bảo mật hơn
+                );
+
+                //=======Điều hướng theo quyền truy cập=======
+                if ($user['role'] === 'admin') {
+                    header("Location: home.php");   //Trang quản lý sản phẩm
+                }
+                else {
+                    header("Location: index.php");   //Trang xem sản phẩm sản phẩm
+                }
                 exit;
+
             } else {
                 $error = "Username hoặc Mật khẩu không đúng.";
             }
@@ -62,13 +86,75 @@ $conn->close();
     <title>Trang Chính - Đăng Nhập</title>
     <style>
         /* CSS tối thiểu để mô phỏng giao diện */
-        body { font-family: sans-serif; background-color: #d9d9d9; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-        .container { background-color: #fff; padding: 40px; border-radius: 5px; width: 400px; text-align: center; }
-        input[type="text"], input[type="password"] { width: 100%; padding: 12px; margin: 8px 0; display: inline-block; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; background-color: #e6e6e6; }
-        .btn-login { background-color: #ff5117; color: white; padding: 14px 20px; margin: 8px 0; border: 2px solid #ff5117; border-radius: 4px; cursor: pointer; width: 100%; font-size: 16px; font-weight: bold; }
-        .btn-register { background-color: #fff; color: #ff5117; padding: 14px 20px; margin-top: 20px; border: 2px solid #ff5117; border-radius: 4px; cursor: pointer; width: 100%; font-size: 16px; font-weight: bold; }
-        .register-link { margin-top: 15px; display: block; text-align: left; }
-        .error { padding: 10px; margin-bottom: 15px; border-radius: 4px; background-color: #fdd; color: #a00; border: 1px solid #a00; }
+        body { 
+            font-family: sans-serif; 
+            background-color: #d9d9d9; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            min-height: 100vh; 
+            margin: 0; 
+        }
+        
+        .container { 
+            background-color: #fff; 
+            padding: 40px; 
+            border-radius: 5px; 
+            width: 400px; 
+            text-align: center;
+        }
+
+        input[type="text"], input[type="password"] { 
+            width: 100%; 
+            adding: 12px;
+            margin: 8px 0; 
+            display: inline-block; 
+            border: 1px solid #ccc; 
+            border-radius: 4px; 
+            box-sizing: border-box; 
+            background-color: #e6e6e6; 
+        }
+
+        .btn-login { 
+            background-color: #ff5117; 
+            color: white; 
+            padding: 14px 20px; 
+            margin: 8px 0; 
+            border: 2px solid #ff5117; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            width: 100%; 
+            ont-size: 16px; 
+            font-weight: bold; 
+        }
+
+        .btn-register { 
+            background-color: #fff; 
+            color: #ff5117; 
+            padding: 14px 20px; 
+            margin-top: 20px; 
+            border: 2px solid #ff5117; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            width: 100%; 
+            font-size: 16px; 
+            font-weight: bold; 
+        }
+
+        .register-link {
+            margin-top: 15px; 
+            display: block; 
+            text-align: left; 
+        }
+
+        .error {
+            padding: 10px; 
+            margin-bottom: 15px; 
+            border-radius: 4px; 
+            background-color: #fdd; 
+            color: #a00; 
+            border: 1px solid #a00; 
+        }
 
         /* CSS -- ĐĂNG NHẬP HỆ THỐNG */
         h2 {
