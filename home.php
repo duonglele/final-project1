@@ -1,164 +1,155 @@
 <?php
+// Bắt đầu session và kiểm tra đăng nhập
+session_start();
+if (!isset($_SESSION['user_id'])) {
+    header("Location: login.php");
+    exit;
+}
+
 include 'connection.php';
 
-// Lấy danh sách categories cho dropdown
-$categories = [];
-$catRes = $conn->query("SELECT * FROM categories ORDER BY name");
-while ($row = $catRes->fetch_assoc()) {
-    $categories[] = $row;
-}
+$message = '';
 
 // ======= Thêm sản phẩm =======
 if (isset($_POST['add_product'])) {
-    $name     = $_POST['name'];
-    $code     = $_POST['code'];
-    $price    = $_POST['price'];
+    $name = trim($_POST['name']);
+    $code = trim($_POST['code']);
+    $price = $_POST['price'];
     $quantity = $_POST['quantity'];
-    $category_id = !empty($_POST['category_id']) ? (int)$_POST['category_id'] : null;
+    $category_id = $_POST['category_id'];
 
-    // Xử lý ảnh upload
-    $image_name = $_FILES['image']['name'];
-    $image_tmp  = $_FILES['image']['tmp_name'];
-    $upload_dir = "uploads/" . basename($image_name);
+    // 1. Kiểm tra mã sản phẩm đã tồn tại (Dùng Prepared Statement)
+    $check_stmt = $conn->prepare("SELECT id FROM products WHERE code = ? LIMIT 1");
+    $check_stmt->bind_param("s", $code);
+    $check_stmt->execute();
+    $check_result = $check_stmt->get_result();
 
-    // Tạo thư mục uploads nếu chưa có
-    if (!is_dir('uploads')) {
-        mkdir('uploads', 0777, true);
-    }
-
-    if (!empty($image_name) && move_uploaded_file($image_tmp, $upload_dir)) {
-
-        // Insert vào bảng products
-        if ($category_id === null) {
-            $sql = "INSERT INTO products (name, code, price, quantity, category_id, image)
-                    VALUES ('$name', '$code', '$price', '$quantity', NULL, '$upload_dir')";
-        } else {
-            $sql = "INSERT INTO products (name, code, price, quantity, category_id, image)
-                    VALUES ('$name', '$code', '$price', '$quantity', $category_id, '$upload_dir')";
-        }
-
-        if ($conn->query($sql)) {
-            // Lấy id sản phẩm vừa tạo
-            $product_id = $conn->insert_id;
-
-            // Lưu thêm vào bảng product_images (ảnh chi tiết)
-            $conn->query("INSERT INTO product_images (product_id, url) 
-                          VALUES ($product_id, '$upload_dir')");
-        }
-    }
-
-    header("Location: home.php");
-    exit;
-}
-
-// ======= Xóa sản phẩm =======
-if (isset($_GET['delete'])) {
-    $id = (int)$_GET['delete'];
-
-    // Lấy ảnh chính trong products
-    $imgRow = $conn->query("SELECT image FROM products WHERE id=$id")->fetch_assoc();
-    if ($imgRow && $imgRow['image'] && file_exists($imgRow['image'])) {
-        unlink($imgRow['image']);
-    }
-
-    // Lấy tất cả ảnh liên quan trong product_images để xóa file
-    $imgsRes = $conn->query("SELECT url FROM product_images WHERE product_id=$id");
-    while ($row = $imgsRes->fetch_assoc()) {
-        if ($row['url'] && file_exists($row['url'])) {
-            unlink($row['url']);
-        }
-    }
-    // Các bản ghi product_images sẽ tự xóa theo ON DELETE CASCADE khi xóa product
-
-    // Xóa sản phẩm (cart_items, order_items cũng sẽ xử lý theo FK nếu có)
-    $conn->query("DELETE FROM products WHERE id=$id");
-
-    header("Location: home.php");
-    exit;
-}
-
-// ======= Sửa sản phẩm =======
-if (isset($_POST['edit_product'])) {
-    $id       = (int)$_POST['id'];
-    $name     = $_POST['name'];
-    $code     = $_POST['code'];
-    $price    = $_POST['price'];
-    $quantity = $_POST['quantity'];
-    $category_id = !empty($_POST['category_id']) ? (int)$_POST['category_id'] : null;
-
-    // Có upload ảnh mới
-    if (!empty($_FILES['image']['name'])) {
-        $image_name = $_FILES['image']['name'];
-        $image_tmp  = $_FILES['image']['tmp_name'];
-        $upload_dir = "uploads/" . basename($image_name);
-
-        if (!is_dir('uploads')) {
-            mkdir('uploads', 0777, true);
-        }
-
-        if (move_uploaded_file($image_tmp, $upload_dir)) {
-            // (Tuỳ chọn) Xóa ảnh cũ trong products
-            $oldImgRow = $conn->query("SELECT image FROM products WHERE id=$id")->fetch_assoc();
-            if ($oldImgRow && $oldImgRow['image'] && file_exists($oldImgRow['image'])) {
-                unlink($oldImgRow['image']);
-            }
-
-            // Update products
-            if ($category_id === null) {
-                $sql = "UPDATE products
-                        SET name='$name', code='$code', price='$price', quantity='$quantity',
-                            category_id=NULL, image='$upload_dir'
-                        WHERE id=$id";
-            } else {
-                $sql = "UPDATE products
-                        SET name='$name', code='$code', price='$price', quantity='$quantity',
-                            category_id=$category_id, image='$upload_dir'
-                        WHERE id=$id";
-            }
-            $conn->query($sql);
-
-            // Lưu thêm 1 ảnh mới vào product_images
-            $conn->query("INSERT INTO product_images (product_id, url)
-                          VALUES ($id, '$upload_dir')");
-        }
+    if ($check_result->num_rows > 0) {
+        $message = "Sản phẩm với mã '{$code}' đã tồn tại trong hệ thống.";
     } else {
-        // Không đổi ảnh, chỉ update thông tin
-        if ($category_id === null) {
-            $sql = "UPDATE products
-                    SET name='$name', code='$code', price='$price', quantity='$quantity',
-                        category_id=NULL
-                    WHERE id=$id";
+        // 2. Xử lý ảnh upload
+        if (isset($_FILES['image']) && $_FILES['image']['error'] == 0) {
+            $image_name = $_FILES['image']['name'];
+            $image_tmp = $_FILES['image']['tmp_name'];
+            $upload_dir = "uploads/" . basename($image_name);
+
+            // Tạo thư mục uploads nếu chưa có
+            if (!is_dir('uploads')) mkdir('uploads', 0777, true);
+
+            if (move_uploaded_file($image_tmp, $upload_dir)) {
+                // 3. Insert vào CSDL (Dùng Prepared Statement)
+                $sql = "INSERT INTO products (name, code, price, quantity, category_id, image)
+                        VALUES (?, ?, ?, ?, ?, ?)";
+                $stmt = $conn->prepare($sql);
+                // Loại dữ liệu: s(string), s(string), d(double/decimal), i(integer), i(integer), s(string)
+                $stmt->bind_param("ssdiss", $name, $code, $price, $quantity, $category_id, $upload_dir);
+                
+                if ($stmt->execute()) {
+                    $message = "Thêm sản phẩm thành công!";
+                } else {
+                     $message = "Lỗi khi thêm sản phẩm: " . $stmt->error;
+                }
+                $stmt->close();
+            } else {
+                 $message = "Lỗi khi upload ảnh.";
+            }
         } else {
-            $sql = "UPDATE products
-                    SET name='$name', code='$code', price='$price', quantity='$quantity',
-                        category_id=$category_id
-                    WHERE id=$id";
+            $message = "Vui lòng chọn ảnh cho sản phẩm.";
         }
-        $conn->query($sql);
+    }
+    $check_stmt->close();
+}
+
+// ======= Xóa sản phẩm (Dùng Prepared Statement) =======
+if (isset($_GET['delete'])) {
+    $id = $_GET['delete'];
+    
+    // Xóa ảnh cũ trên server
+    $img_stmt = $conn->prepare("SELECT image FROM products WHERE id=?");
+    $img_stmt->bind_param("i", $id);
+    $img_stmt->execute();
+    $result = $img_stmt->get_result();
+    $img = $result->fetch_assoc()['image'];
+    if ($img && file_exists($img)) unlink($img);
+    $img_stmt->close();
+    
+    // Xóa sản phẩm khỏi CSDL
+    $delete_stmt = $conn->prepare("DELETE FROM products WHERE id=?");
+    $delete_stmt->bind_param("i", $id);
+    $delete_stmt->execute();
+    $delete_stmt->close();
+    
+    header("Location: home.php");
+    exit;
+}
+
+// ======= Sửa sản phẩm (Dùng Prepared Statement) =======
+if (isset($_POST['edit_product'])) {
+    $id = $_POST['id'];
+    $name = trim($_POST['name']);
+    $code = trim($_POST['code']);
+    $price = $_POST['price'];
+    $quantity = $_POST['quantity'];
+    $category_id = $_POST['category_id'];
+
+    if (!empty($_FILES['image']['name'])) {
+        // Có ảnh mới -> Xóa ảnh cũ và thêm ảnh mới
+        
+        // 1. Xóa ảnh cũ
+        $img_stmt = $conn->prepare("SELECT image FROM products WHERE id=?");
+        $img_stmt->bind_param("i", $id);
+        $img_stmt->execute();
+        $old_img = $img_stmt->get_result()->fetch_assoc()['image'];
+        if ($old_img && file_exists($old_img)) unlink($old_img);
+        $img_stmt->close();
+        
+        // 2. Upload ảnh mới
+        $image_name = $_FILES['image']['name'];
+        $image_tmp = $_FILES['image']['tmp_name'];
+        $upload_dir = "uploads/" . basename($image_name);
+        move_uploaded_file($image_tmp, $upload_dir);
+        
+        // 3. Update CSDL kèm ảnh
+        $sql = "UPDATE products SET name=?, code=?, price=?, quantity=?, category_id=?, image=? WHERE id=?";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("ssdissi", $name, $code, $price, $quantity, $category_id, $upload_dir, $id);
+        $stmt->execute();
+        $stmt->close();
+        
+    } else {
+        // Không có ảnh mới -> Chỉ update thông tin
+        $sql = "UPDATE products SET name=?, code=?, price=?, quantity=?, category_id=? WHERE id=?";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("ssdisi", $name, $code, $price, $quantity, $category_id, $id);
+        $stmt->execute();
+        $stmt->close();
     }
 
     header("Location: home.php");
     exit;
 }
 
-// ======= Lấy danh sách sản phẩm (JOIN category) =======
-$result = $conn->query("
-    SELECT p.*, c.name AS category_name
-    FROM products p
-    LEFT JOIN categories c ON p.category_id = c.id
-    ORDER BY p.id DESC
-");
+// Lấy danh sách Categories
+$categories_result = $conn->query("SELECT id, name FROM categories");
+
+// Lấy danh sách sản phẩm (JOIN với categories để hiển thị tên danh mục)
+$sql_select = "SELECT p.*, c.name as category_name 
+               FROM products p 
+               JOIN categories c ON p.category_id = c.id
+               ORDER BY p.id DESC"; // Sắp xếp theo ID mới nhất
+$result = $conn->query($sql_select);
 ?>
 
 <!DOCTYPE html>
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
-<title class = "title">Quản lý sản phẩm</title>
+<title>Quản lý sản phẩm</title>
 <style>
+    /* CSS giữ nguyên, chỉ sửa màu để khớp với giao diện login */
     body {
         font-family: Arial, sans-serif;
-        background-color: #e6e6e6;
+        background-color: #fce4d4; /* Tone nền nhạt của ảnh du lịch */
         display: flex;
         justify-content: center;
         padding: 40px 0;
@@ -168,7 +159,7 @@ $result = $conn->query("
         background: white;
         border-radius: 10px;
         padding: 20px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     }
     h2 {
         text-align: center;
@@ -178,23 +169,24 @@ $result = $conn->query("
     form {
         display: flex;
         align-items: center;
+        flex-wrap: wrap; /* Cho phép xuống dòng nếu cần */
         gap: 10px;
-        background: #f9f9f9;
+        background: #fff3ec; /* Nền form nhạt hơn */
         padding: 15px;
         border-radius: 8px;
         margin-bottom: 25px;
-        flex-wrap: wrap;
+        border: 1px solid #ff5117;
     }
     input[type="text"], input[type="number"], input[type="file"], select {
         flex: 1;
-        min-width: 150px;
         padding: 10px;
         border: 1px solid #ccc;
         border-radius: 6px;
         background: #f0f0f0;
+        min-width: 150px; /* Giữ độ rộng tối thiểu */
     }
     .btn {
-        background-color: #58bc39;
+        background-color: #ff5117;
         color: white;
         border: none;
         padding: 10px 16px;
@@ -202,10 +194,7 @@ $result = $conn->query("
         cursor: pointer;
         font-weight: bold;
     }
-    .btn:hover { 
-        /* background-color: #777;  */
-        opacity: .8;
-    }
+    .btn:hover { background-color: #cc4113; }
     table {
         width: 100%;
         border-collapse: collapse;
@@ -216,7 +205,7 @@ $result = $conn->query("
         border-bottom: 1px solid #ccc;
     }
     th {
-        background-color: #999;
+        background-color: #ff5117;
         color: white;
     }
     img {
@@ -226,15 +215,20 @@ $result = $conn->query("
         border-radius: 8px;
     }
     .actions a {
-        color: #0066cc;
+        color: #ff5117;
         text-decoration: none;
         margin: 0 5px;
         font-weight: bold;
     }
     .actions a:hover { text-decoration: underline; }
-
-    .head-product {
-        background-color: 
+    .message {
+        padding: 10px;
+        margin-bottom: 15px;
+        border-radius: 4px;
+        background-color: #dfd;
+        color: #0a0;
+        border: 1px solid #0a0;
+        text-align: center;
     }
 </style>
 </head>
@@ -242,28 +236,31 @@ $result = $conn->query("
 
 <div class="container">
     <h2>QUẢN LÝ SẢN PHẨM</h2>
+    
+    <?php if ($message): ?>
+        <div class="message"><?php echo htmlspecialchars($message); ?></div>
+    <?php endif; ?>
 
-    <!-- Form thêm sản phẩm -->
     <form method="POST" enctype="multipart/form-data">
         <input type="text" name="name" placeholder="Tên sản phẩm" required>
         <input type="text" name="code" placeholder="Mã sản phẩm" required>
-        <input type="number" name="price" placeholder="Giá" required>
-        <input type="number" name="quantity" placeholder="Số lượng" required>
-
-        <select name="category_id">
-            <option value="">-- Chọn danh mục --</option>
-            <?php foreach ($categories as $cat) { ?>
+        
+        <select name="category_id" required>
+            <option value="" disabled selected>Chọn Danh mục</option>
+            <?php $categories_result->data_seek(0); // Reset con trỏ ?>
+            <?php while ($cat = $categories_result->fetch_assoc()) { ?>
                 <option value="<?= $cat['id'] ?>"><?= htmlspecialchars($cat['name']) ?></option>
             <?php } ?>
         </select>
-
+        
+        <input type="number" name="price" placeholder="Giá" required>
+        <input type="number" name="quantity" placeholder="Số lượng" required>
         <input type="file" name="image" accept="image/*" required>
         <button type="submit" name="add_product" class="btn">+ Thêm</button>
     </form>
 
-    <!-- Bảng sản phẩm -->
     <table>
-        <tr class = "head-product">
+        <tr>
             <th>ID</th>
             <th>Ảnh</th>
             <th>Tên sản phẩm</th>
@@ -273,17 +270,14 @@ $result = $conn->query("
             <th>Số lượng</th>
             <th>Hành động</th>
         </tr>
+        <?php if ($result->num_rows > 0) { ?>
         <?php while ($row = $result->fetch_assoc()) { ?>
         <tr>
             <td><?= $row['id'] ?></td>
-            <td>
-                <?php if ($row['image']) { ?>
-                    <img src="<?= $row['image'] ?>">
-                <?php } else { echo "Không có ảnh"; } ?>
-            </td>
+            <td><?php if ($row['image'] && file_exists($row['image'])) { ?><img src="<?= $row['image'] ?>"><?php } else { echo "Không có ảnh"; } ?></td>
             <td><?= htmlspecialchars($row['name']) ?></td>
             <td><?= htmlspecialchars($row['code']) ?></td>
-            <td><?= $row['category_name'] ? htmlspecialchars($row['category_name']) : 'Chưa gán' ?></td>
+            <td><?= htmlspecialchars($row['category_name'] ?? 'Chưa xác định') ?></td>
             <td><?= number_format($row['price'], 0, ',', '.') ?>₫</td>
             <td><?= $row['quantity'] ?></td>
             <td class="actions">
@@ -292,35 +286,60 @@ $result = $conn->query("
             </td>
         </tr>
         <?php } ?>
+        <?php } else { ?>
+        <tr><td colspan="8">Chưa có sản phẩm nào được thêm vào.</td></tr>
+        <?php } ?>
     </table>
 
-    <?php if (isset($_GET['edit'])) {
-        $id = (int)$_GET['edit'];
-        $product = $conn->query("SELECT * FROM products WHERE id=$id")->fetch_assoc();
+    <?php 
+    // Logic form sửa sản phẩm
+    if (isset($_GET['edit'])) {
+        $id = $_GET['edit'];
+        $edit_stmt = $conn->prepare("SELECT * FROM products WHERE id=?");
+        $edit_stmt->bind_param("i", $id);
+        $edit_stmt->execute();
+        $product = $edit_stmt->get_result()->fetch_assoc();
+        $edit_stmt->close();
+        if ($product) {
     ?>
     <h3 style="margin-top: 30px;">Sửa sản phẩm</h3>
     <form method="POST" enctype="multipart/form-data">
         <input type="hidden" name="id" value="<?= $product['id'] ?>">
         <input type="text" name="name" value="<?= htmlspecialchars($product['name']) ?>" required>
         <input type="text" name="code" value="<?= htmlspecialchars($product['code']) ?>" required>
-        <input type="number" name="price" value="<?= $product['price'] ?>" required>
-        <input type="number" name="quantity" value="<?= $product['quantity'] ?>" required>
-
-        <select name="category_id">
-            <option value="">-- Chọn danh mục --</option>
-            <?php foreach ($categories as $cat) { ?>
-                <option value="<?= $cat['id'] ?>"
-                    <?= $product['category_id'] == $cat['id'] ? 'selected' : '' ?>>
+        
+        <select name="category_id" required>
+            <?php $categories_result->data_seek(0); // Reset con trỏ ?>
+            <?php while ($cat = $categories_result->fetch_assoc()) { ?>
+                <option value="<?= $cat['id'] ?>" <?= ($cat['id'] == $product['category_id']) ? 'selected' : '' ?>>
                     <?= htmlspecialchars($cat['name']) ?>
                 </option>
             <?php } ?>
         </select>
-
+        
+        <input type="number" name="price" value="<?= $product['price'] ?>" required>
+        <input type="number" name="quantity" value="<?= $product['quantity'] ?>" required>
         <input type="file" name="image" accept="image/*">
         <button type="submit" name="edit_product" class="btn">Cập nhật</button>
     </form>
-    <?php } ?>
+    <?php 
+        } // end if ($product)
+    } // end if (isset($_GET['edit']))
+    ?>
+    
+<div style="text-align: right; margin-top: 30px;">
+    <a href="logout.php"
+       style="background-color: #cc3333; 
+              color: white; 
+              padding: 12px 24px; 
+              border-radius: 6px; 
+              text-decoration: none; 
+              font-weight: bold;
+              transition: 0.3s;">
+       Đăng xuất
+    </a>
 </div>
 
+</div>
 </body>
 </html>
