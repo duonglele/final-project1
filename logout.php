@@ -1,9 +1,15 @@
 <?php
 session_start();
-// Hủy bỏ tất cả các biến session
+
+// Hủy tất cả biến session
 $_SESSION = array();
 
-// Xóa session cookie
+// XÓA COOKIE GHI NHỚ ĐĂNG NHẬP (nếu có)
+setcookie('user_id',   '', time() - 3600, "/", "", false, true);
+setcookie('username',  '', time() - 3600, "/", "", false, true);
+setcookie('user_role', '', time() - 3600, "/", "", false, true);
+
+// Xóa session cookie (PHPSESSID)
 if (ini_get("session.use_cookies")) {
     $params = session_get_cookie_params();
     setcookie(session_name(), '', time() - 42000,
@@ -15,7 +21,7 @@ if (ini_get("session.use_cookies")) {
 // Hủy session
 session_destroy();
 
-// Chuyển hướng về trang đăng nhập
+// Quay về trang đăng nhập
 header("Location: login.php");
 exit;
 ?>
