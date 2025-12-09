@@ -2,36 +2,28 @@
 // Bắt đầu session
 session_start();
 
+// Thiết lập thời gian hết hạn cookie (30 ngày)
+$cookie_expiry = time() + (30 * 24 * 60 * 60); 
+
 /*
  * 1. TỰ ĐĂNG NHẬP BẰNG COOKIE (REMEMBER ME)
- * - Nếu chưa có session nhưng trình duyệt còn các cookie user_id, username, role
- *   thì tạo lại session và chuyển hướng luôn.
+ * - Nếu chưa có session nhưng trình duyệt còn các cookie user_id, username
+ * thì tạo lại session và chuyển hướng luôn.
  */
 if (
     !isset($_SESSION['user_id']) &&
-    isset($_COOKIE['user_id'], $_COOKIE['username'], $_COOKIE['user_role'])
+    isset($_COOKIE['user_id'], $_COOKIE['username'])
 ) {
     $_SESSION['user_id']  = $_COOKIE['user_id'];
     $_SESSION['username'] = $_COOKIE['username'];
-    $_SESSION['role']     = $_COOKIE['user_role'];
-
-    if ($_SESSION['role'] === 'admin') {
-        header("Location: home.php");   // Trang admin
-    } else {
-        header("Location: index.php");  // Trang khách xem sản phẩm
-    }
+    
+    header("Location: home.php");
     exit;
 }
 
-/*
- * 2. Nếu đã có session → chuyển hướng luôn theo role
- */
+// 2. Nếu đã có session → chuyển hướng luôn
 if (isset($_SESSION['user_id'])) {
-    if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') {
-        header("Location: home.php");
-    } else {
-        header("Location: index.php");
-    }
+    header("Location: home.php");
     exit;
 }
 
@@ -41,18 +33,14 @@ $error = '';
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     // 1. Lấy dữ liệu
-    $username = trim($_POST['username']);  // cho phép nhập username hoặc email
+    $username = trim($_POST['username']);
     $password = $_POST['password'];
 
     if (empty($username) || empty($password)) {
         $error = "Vui lòng nhập Username/Email và Mật khẩu.";
     } else {
-
-        // 2. Truy vấn người dùng theo bảng users trong ERD (có cột role)
-        $sql = "SELECT id, username, email, password, role 
-                FROM users 
-                WHERE username = ? OR email = ?
-                LIMIT 1";
+        // 2. Truy vấn người dùng
+        $sql = "SELECT id, username, password FROM users WHERE username = ? OR email = ?";
         $stmt = $conn->prepare($sql);
         $stmt->bind_param("ss", $username, $username);
         $stmt->execute();
@@ -64,42 +52,30 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
             // 3. Kiểm tra mật khẩu
             if (
-                // Nếu mật khẩu đã mã hóa bcrypt
-                (substr($hashedPassword, 0, 4) === '$2y$' && password_verify($password, $hashedPassword))
-                // Nếu đang lưu mật khẩu thường (dev/test) thì so sánh trực tiếp
-                || ($password === $hashedPassword)
+                (substr($hashedPassword, 0, 4) === '$2y$' && password_verify($password, $hashedPassword)) ||
+                ($password === $hashedPassword)
             ) {
                 // ===== ĐĂNG NHẬP THÀNH CÔNG =====
 
                 // Lưu thông tin vào session
                 $_SESSION['user_id']  = $user['id'];
                 $_SESSION['username'] = $user['username'];
-                $_SESSION['role']     = $user['role'];
-
+                
                 /*
                  * 4. GHI NHỚ ĐĂNG NHẬP BẰNG COOKIE (NẾU TICK)
-                 *    - Lưu user_id, username, role vào cookie ~30 ngày
+                 * - Lưu user_id, username vào cookie ~30 ngày
                  */
                 if (!empty($_POST['remember'])) {
-                    $expiry = time() + (30 * 24 * 60 * 60); // 30 ngày
-
-                    // Cookie chỉ dùng để server đọc (httponly)
-                    setcookie("user_id",   $user['id'],       $expiry, "/", "", false, true);
-                    setcookie("username",  $user['username'], $expiry, "/", "", false, true);
-                    setcookie("user_role", $user['role'],     $expiry, "/", "", false, true);
+                    // Cookie chỉ dùng để server đọc (httponly: true)
+                    setcookie("user_id",  $user['id'],      $cookie_expiry, "/", "", false, true);
+                    setcookie("username", $user['username'], $cookie_expiry, "/", "", false, true);
                 } else {
                     // Không chọn "Ghi nhớ đăng nhập" → xóa cookie (nếu có)
-                    setcookie("user_id",   "", time() - 3600, "/", "", false, true);
-                    setcookie("username",  "", time() - 3600, "/", "", false, true);
-                    setcookie("user_role", "", time() - 3600, "/", "", false, true);
+                    setcookie("user_id",  "", time() - 3600, "/", "", false, true);
+                    setcookie("username", "", time() - 3600, "/", "", false, true);
                 }
 
-                // 5. Chuyển hướng theo phân quyền
-                if ($user['role'] === 'admin') {
-                    header("Location: home.php");   // Trang quản lý sản phẩm
-                } else {
-                    header("Location: index.php");  // Trang khách
-                }
+                header("Location: home.php");
                 exit;
 
             } else {
@@ -108,9 +84,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         } else {
             $error = "Username/Email hoặc Mật khẩu không đúng.";
         }
-        if (isset($stmt)) {
-            $stmt->close();
-        }
+        $stmt->close();
     }
 }
 $conn->close();
@@ -122,44 +96,49 @@ $conn->close();
     <meta charset="UTF-8">
     <title>Trang Chính - Đăng Nhập</title>
     <style>
-        /* CSS đơn giản – bạn có thể giữ nguyên hoặc chỉnh lại */
+        /* CSS đã được tối ưu cho hình nền Du lịch (tone Cam/Vàng) */
         body { 
             font-family: sans-serif; 
-            background-color: #d9d9d9; 
             display: flex; 
             justify-content: center; 
             align-items: center; 
             min-height: 100vh; 
-            margin: 0; 
+            margin: 0;
+            background-image: url('image_d0075e.png'); /* Hình nền Du lịch */
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
         }
         .container { 
-            background-color: #fff; 
+            background-color: rgba(255, 255, 255, 0.9); /* Trắng trong suốt */
             padding: 40px; 
-            border-radius: 5px; 
+            border-radius: 10px; /* Bo góc */
             width: 400px; 
+            text-align: center; 
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+        }
+        h2 {
+            font-size: 28px;
+            font-weight: bold;
+            color: #ff5117; /* Màu cam chính */
+            margin-bottom: 30px;
             text-align: center;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            text-transform: uppercase;
         }
-        h1 {
-            margin-bottom: 10px;
-            color: #333;
-        }
-        .subtitle {
-            margin-bottom: 20px;
-            color: #777;
-        }
-        input[type="text"], input[type="password"] {
+        input[type="text"], input[type="password"] { 
             width: 100%; 
-            padding: 12px 20px; 
+            padding: 12px; 
             margin: 8px 0; 
-            border: 1px solid #ccc; 
-            border-radius: 4px;
-            box-sizing: border-box;
+            border: 1px solid #ff5117; /* Viền cam */
+            border-radius: 4px; 
+            box-sizing: border-box; 
+            background-color: #fce4d4; /* Nền nhạt */
         }
         .btn-login { 
             background-color: #ff5117; 
-            color: #fff; 
+            color: white; 
             padding: 14px 20px; 
+            margin: 8px 0; 
             border: none; 
             border-radius: 4px; 
             cursor: pointer; 
@@ -168,7 +147,7 @@ $conn->close();
             font-weight: bold; 
         }
         .btn-login:hover {
-            background-color: #e04815;
+            background-color: #cc4113;
         }
         .btn-register { 
             background-color: #fff; 
@@ -179,21 +158,23 @@ $conn->close();
             border-radius: 4px; 
             cursor: pointer; 
             width: 100%; 
-            font-size: 16px;
-            font-weight: bold;
+            font-size: 16px; 
+            font-weight: bold; 
         }
         .btn-register:hover {
-            background-color: #ffe7df;
+            background-color: #ff5117;
+            color: #fff;
         }
         .error {
-            color: red;
-            margin-bottom: 10px;
+            padding: 10px; margin-bottom: 15px; border-radius: 4px; background-color: #fdd; color: #a00; border: 1px solid #a00;
         }
+        .register-link { margin-top: 15px; display: block; text-align: center; }
         .remember {
             text-align: left;
             margin: 8px 0 16px;
             font-size: 14px;
             color: #555;
+            display: block;
         }
         .remember label {
             display: flex;
@@ -204,10 +185,9 @@ $conn->close();
 </head>
 <body>
     <div class="container">
-        <h1>Đăng Nhập</h1>
-        <div class="subtitle">Final Project Shop</div>
+        <h2>ĐĂNG NHẬP HỆ THỐNG</h2>
 
-        <?php if (!empty($error)) : ?>
+        <?php if ($error): ?>
             <div class="error"><?php echo htmlspecialchars($error); ?></div>
         <?php endif; ?>
 
@@ -215,7 +195,6 @@ $conn->close();
             <input type="text" name="username" placeholder="Username hoặc Email" required>
             <input type="password" name="password" placeholder="Password" required>
 
-            <!-- Ghi nhớ đăng nhập -->
             <div class="remember">
                 <label>
                     <input type="checkbox" name="remember" value="1">
