@@ -8,25 +8,20 @@ $username = '';
 $email = '';
 $phone = '';
 
-// ADMIN KEY: Dùng để xác nhận khi tạo tài khoản ADMIN
-$ADMIN_KEY = "ADMINKEY";
-
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $username = trim($_POST['username']);
     $email = trim($_POST['email']);
     $phone = trim($_POST['phone']);
     $password = $_POST['password'];
     $confirm_password = $_POST['confirm_password'];
-    $admin_key_input = trim($_POST['admin_key'] ?? '');   // <-- Lấy KEY từ form
 
     if (empty($username) || empty($email) || empty($password) || empty($confirm_password)) {
-        $error = "Vui lòng điền đầy đủ thông tin    .";
+        $error = "Vui lòng điền đầy đủ tất cả các trường.";
     } elseif ($password !== $confirm_password) {
         $error = "Mật khẩu xác nhận không khớp.";
     } elseif (strlen($password) < 6) {
         $error = "Mật khẩu phải có ít nhất 6 ký tự.";
     } else {
-        //Kiểm tra username hoặc email đã tồn tại
         $sql = "SELECT id FROM users WHERE username = ? OR email = ?";
         $stmt = $conn->prepare($sql);
         $stmt->bind_param("ss", $username, $email);
@@ -36,25 +31,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         if ($stmt->num_rows > 0) {
             $error = "Username hoặc Email đã được sử dụng.";
         } else {
-
-            //===========================================
-            //==========XÁC ĐỊNH QUYỀN TÀI KHOẢN=========
-            //===========================================
-            $role = "user"; //Mặc định tài khoản sẽ là user
-            if (!empty($admin_key_input) && $admin_key_input == $ADMIN_KEY) {
-                $role = "admin";
-            }
-
-            //Mã hoá mật khẩu
             $hashed_password = password_hash($password, PASSWORD_DEFAULT);
 
-            //Insert user
-            $insert_sql = "INSERT INTO users (username, email, phone, password, role) VALUES (?, ?, ?, ?, ?)";
+            // SỬA: Thêm cột created_AT (sẽ tự động điền)
+            $insert_sql = "INSERT INTO users (username, email, phone, password) VALUES (?, ?, ?, ?)";
             $insert_stmt = $conn->prepare($insert_sql);
-            $insert_stmt->bind_param("sssss", $username, $email, $phone, $hashed_password, $role);
+            $insert_stmt->bind_param("ssss", $username, $email, $phone, $hashed_password);
 
             if ($insert_stmt->execute()) {
-                //  THÊM PHẦN NÀY: Chuyển hướng về trang đăng nhập sau khi đăng ký thành công
+                //  Chuyển hướng về trang đăng nhập sau khi đăng ký thành công
                 echo "<script>
                         alert('Đăng ký thành công! Hãy đăng nhập để tiếp tục.');
                         window.location.href = 'login.php';
@@ -70,16 +55,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 }
 $conn->close();
 ?>
-
 <!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
     <title>Trang Đăng Ký</title>
     <style>
+        /* CSS được tối ưu */
         body {
             font-family: Arial, sans-serif;
-            background-color: #d9d9d9;
+            background-color: #e6e6e6;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -87,11 +72,11 @@ $conn->close();
             margin: 0;
         }
         .register-container {
-            background-color: #f2f2f2;
+            background-color: #fff;
             padding: 30px 40px;
-            border-radius: 5px;
+            border-radius: 10px;
             width: 380px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
         }
         h2 {
             font-size: 24px;
@@ -111,7 +96,7 @@ $conn->close();
             border: 1px solid #ccc;
             border-radius: 4px;
             box-sizing: border-box;
-            background-color: #e6e6e6;
+            background-color: #f0f0f0;
             font-size: 16px;
             color: #555;
         }
@@ -123,7 +108,7 @@ $conn->close();
             color: white;
             padding: 14px 20px;
             margin-top: 10px;
-            border: 2px solid #ff5117;
+            border: none;
             border-radius: 4px;
             cursor: pointer;
             width: 100%;
@@ -132,8 +117,7 @@ $conn->close();
             text-transform: uppercase;
         }
         button:hover {
-            background-color: #fff;
-            color: #ff5117;
+            background-color: #cc4113;
         }
         .message {
             padding: 10px;
@@ -146,23 +130,17 @@ $conn->close();
             color: #a00;
             border: 1px solid #a00;
         }
-        .success {
-            background-color: #dfd;
-            color: #0a0;
-            border: 1px solid #0a0;
-        }
         .login-link {
             text-align: center;
             margin-top: 15px;
         }
         .login-link a {
-            color: #333;
+            color: #ff5117;
             text-decoration: none;
             font-weight: bold;
         }
         .login-link a:hover {
             text-decoration: underline;
-            color: #ff5117;
         }
     </style>
 </head>
@@ -171,11 +149,7 @@ $conn->close();
         <h2>Đăng Ký Tài Khoản Mới</h2>
 
         <?php if ($error): ?>
-            <div class="message error"><?php echo $error; ?></div>
-        <?php endif; ?>
-
-        <?php if ($success): ?>
-            <div class="message success"><?php echo $success; ?></div>
+            <div class="message error"><?php echo htmlspecialchars($error); ?></div>
         <?php endif; ?>
         
         <form action="register.php" method="post" autocomplete="off">
@@ -184,7 +158,6 @@ $conn->close();
             <input type="text" name="phone" placeholder="Số điện thoại" value="<?php echo htmlspecialchars($phone); ?>">
             <input type="password" name="password" placeholder="Mật khẩu" required>
             <input type="password" name="confirm_password" placeholder="Xác nhận lại mật khẩu" required>
-            <input type="text" name="admin_key" placeholder="Nhập ADMIN KEY (nếu có)">
             <button type="submit">ĐĂNG KÝ</button>
         </form>
 
