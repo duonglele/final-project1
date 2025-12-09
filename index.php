@@ -1,1 +1,5 @@
-//File chỉ hiển thị trang để cho user xem sản phẩm
+<?php
+// File index.php - tự động redirect sang login
+header("Location: login.php");
+exit();
+?>
