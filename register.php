@@ -1,169 +1,54 @@
 <?php
-session_start();
-include 'connection.php';
+// htdocs/register.php
+require_once __DIR__ . "/config/db.php";
+require_once __DIR__ . "/includes/header.php";
 
-$error = '';
-$success = '';
-$username = '';
-$email = '';
-$phone = '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+  $name = trim($_POST['name'] ?? '');
+  $email = trim($_POST['email'] ?? '');
+  $pass = $_POST['password'] ?? '';
 
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $username = trim($_POST['username']);
-    $email = trim($_POST['email']);
-    $phone = trim($_POST['phone']);
-    $password = $_POST['password'];
-    $confirm_password = $_POST['confirm_password'];
+  if ($name && $email && $pass) {
+    try {
+      $hash = password_hash($pass, PASSWORD_BCRYPT);
+      $st = $pdo->prepare("INSERT INTO users(name,email,password_hash,role) VALUES(?,?,?, 'user')");
+      $st->execute([$name,$email,$hash]);
+      
+      echo "<div class='alert' style='background:#dcfce7; color:#166534; text-align:center;'>✅ Đăng ký thành công! Đang chuyển hướng...</div>";
+      echo "<meta http-equiv='refresh' content='2;url=login.php'>";
+      require_once __DIR__ . "/includes/footer.php";
+      exit;
 
-    if (empty($username) || empty($email) || empty($password) || empty($confirm_password)) {
-        $error = "Vui lòng điền đầy đủ tất cả các trường.";
-    } elseif ($password !== $confirm_password) {
-        $error = "Mật khẩu xác nhận không khớp.";
-    } elseif (strlen($password) < 6) {
-        $error = "Mật khẩu phải có ít nhất 6 ký tự.";
-    } else {
-        $sql = "SELECT id FROM users WHERE username = ? OR email = ?";
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param("ss", $username, $email);
-        $stmt->execute();
-        $stmt->store_result();
-
-        if ($stmt->num_rows > 0) {
-            $error = "Username hoặc Email đã được sử dụng.";
-        } else {
-            $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-
-            // SỬA: Thêm cột created_AT (sẽ tự động điền)
-            $insert_sql = "INSERT INTO users (username, email, phone, password) VALUES (?, ?, ?, ?)";
-            $insert_stmt = $conn->prepare($insert_sql);
-            $insert_stmt->bind_param("ssss", $username, $email, $phone, $hashed_password);
-
-            if ($insert_stmt->execute()) {
-                //  Chuyển hướng về trang đăng nhập sau khi đăng ký thành công
-                echo "<script>
-                        alert('Đăng ký thành công! Hãy đăng nhập để tiếp tục.');
-                        window.location.href = 'login.php';
-                      </script>";
-                exit;
-            } else {
-                $error = "Đã xảy ra lỗi khi đăng ký: " . $insert_stmt->error;
-            }
-            $insert_stmt->close();
-        }
-        $stmt->close();
+    } catch (Throwable $e) {
+      $err = "Email này đã được sử dụng.";
     }
+  } else $err = "Vui lòng nhập đủ thông tin.";
 }
-$conn->close();
 ?>
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <title>Trang Đăng Ký</title>
-    <style>
-        /* CSS được tối ưu */
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #e6e6e6;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-        }
-        .register-container {
-            background-color: #fff;
-            padding: 30px 40px;
-            border-radius: 10px;
-            width: 380px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
-        }
-        h2 {
-            font-size: 24px;
-            font-weight: bold;
-            color: #ff5117;
-            margin-bottom: 30px;
-            text-align: center;
-            text-transform: uppercase;
-        }
-        input[type="text"],
-        input[type="email"],
-        input[type="password"] {
-            width: calc(100%);
-            padding: 12px;
-            margin-bottom: 15px;
-            display: block;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            box-sizing: border-box;
-            background-color: #f0f0f0;
-            font-size: 16px;
-            color: #555;
-        }
-        input::placeholder {
-            color: #888;
-        }
-        button {
-            background-color: #ff5117;
-            color: white;
-            padding: 14px 20px;
-            margin-top: 10px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            width: 100%;
-            font-size: 16px;
-            font-weight: bold;
-            text-transform: uppercase;
-        }
-        button:hover {
-            background-color: #cc4113;
-        }
-        .message {
-            padding: 10px;
-            margin-bottom: 15px;
-            border-radius: 4px;
-            text-align: center;
-        }
-        .error {
-            background-color: #fdd;
-            color: #a00;
-            border: 1px solid #a00;
-        }
-        .login-link {
-            text-align: center;
-            margin-top: 15px;
-        }
-        .login-link a {
-            color: #ff5117;
-            text-decoration: none;
-            font-weight: bold;
-        }
-        .login-link a:hover {
-            text-decoration: underline;
-        }
-    </style>
-</head>
-<body>
-    <div class="register-container">
-        <h2>Đăng Ký Tài Khoản Mới</h2>
 
-        <?php if ($error): ?>
-            <div class="message error"><?php echo htmlspecialchars($error); ?></div>
-        <?php endif; ?>
-        
-        <form action="register.php" method="post" autocomplete="off">
-            <input type="text" name="username" placeholder="Username" value="<?php echo htmlspecialchars($username); ?>" required>
-            <input type="email" name="email" placeholder="Email" value="<?php echo htmlspecialchars($email); ?>" required>
-            <input type="text" name="phone" placeholder="Số điện thoại" value="<?php echo htmlspecialchars($phone); ?>">
-            <input type="password" name="password" placeholder="Mật khẩu" required>
-            <input type="password" name="confirm_password" placeholder="Xác nhận lại mật khẩu" required>
-            <button type="submit">ĐĂNG KÝ</button>
-        </form>
-
-        <div class="login-link">
-            <p>Đã có tài khoản? <a href="login.php">Đăng nhập ngay</a></p>
-        </div>
+<div class="auth-page">
+  <div class="auth-card">
+    <h2>Đăng ký tài khoản</h2>
+    
+    <?php if (!empty($err)) echo "<div class='alert' style='background:#fee2e2; color:#b91c1c;'>".htmlspecialchars($err)."</div>"; ?>
+    
+    <form method="post" class="form">
+      <label>Họ và tên:</label>
+      <input name="name" placeholder="Ví dụ: Nguyễn Văn A" required>
+      
+      <label>Email:</label>
+      <input name="email" type="email" placeholder="email@example.com" required>
+      
+      <label>Mật khẩu:</label>
+      <input type="password" name="password" placeholder="Tự đặt mật khẩu..." required>
+      
+      <button class="btn primary" style="width:100%; margin-top:10px;">Tạo tài khoản</button>
+    </form>
+    
+    <div class="mt-16 center">
+        Đã có tài khoản? <a href="login.php" style="color:#e11d48;">Đăng nhập</a>
     </div>
-</body>
-</html>
+  </div>
+</div>
+
+<?php require_once __DIR__ . "/includes/footer.php"; ?>
