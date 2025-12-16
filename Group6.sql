@@ -1,74 +1,55 @@
-USE final_project;
+-- 1. Bảng Users (Có cột created_at)
 CREATE TABLE users (
-    id INT(11) PRIMARY KEY AUTO_INCREMENT,
-    username VARCHAR(50) NOT NULL UNIQUE,
-    email VARCHAR(100) NOT NULL UNIQUE,
-    phone VARCHAR(20),
-    password VARCHAR(255) NOT NULL,
-    created_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  email VARCHAR(190) NOT NULL UNIQUE,
+  password_hash VARCHAR(255) NOT NULL,
+  role ENUM('admin','user') NOT NULL DEFAULT 'user',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 2. Bảng categories
-CREATE TABLE categories (
-    id INT(11) PRIMARY KEY AUTO_INCREMENT,
-    name VARCHAR(100) NOT NULL,
-    description TEXT
+-- 2. Bảng Remember Tokens
+CREATE TABLE user_remember_tokens (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  selector CHAR(24) NOT NULL UNIQUE,
+  token_hash CHAR(64) NOT NULL,
+  expires_at DATETIME NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
--- DỮ LIỆU MẪU CHO THIẾT BỊ ĐIỆN TỬ
-INSERT INTO categories (name) VALUES 
-('Điện thoại & Máy tính bảng'), 
-('Laptop & Máy tính bàn'), 
-('Linh kiện Điện tử'), 
-('Phụ kiện & Thiết bị ngoại vi');
-
--- 3. Bảng products
+-- 3. Bảng Products (QUAN TRỌNG: Có cột created_at)
 CREATE TABLE products (
-    id INT(11) PRIMARY KEY AUTO_INCREMENT,
-    name VARCHAR(100) NOT NULL,
-    code VARCHAR(50) UNIQUE,
-    price DECIMAL(10,2) NOT NULL,
-    quantity INT(11) NOT NULL,
-    category_id INT(11),
-    image VARCHAR(255),
-    FOREIGN KEY (category_id) REFERENCES categories(id)
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  sku VARCHAR(50) UNIQUE,
+  name VARCHAR(200) NOT NULL,
+  price DECIMAL(12,2) NOT NULL,
+  stock INT NOT NULL DEFAULT 0,
+  short_desc VARCHAR(255),
+  description TEXT,
+  image VARCHAR(255),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
--- 4. Bảng orders
+-- 4. Bảng Orders
 CREATE TABLE orders (
-    id INT(11) PRIMARY KEY AUTO_INCREMENT,
-    user_id INT(11),
-    total DECIMAL(10,2),
-    status VARCHAR(50) DEFAULT 'Pending',
-    created_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id)
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  total DECIMAL(12,2) NOT NULL,
+  status ENUM('pending','paid','cancelled') DEFAULT 'paid',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
--- 5. Bảng order_items
+-- 5. Bảng Order Items
 CREATE TABLE order_items (
-    id INT(11) PRIMARY KEY AUTO_INCREMENT,
-    order_id INT(11),
-    product_id INT(11),
-    price DECIMAL(10,2),
-    quantity INT(11),
-    FOREIGN KEY (order_id) REFERENCES orders(id),
-    FOREIGN KEY (product_id) REFERENCES products(id)
-);
-
--- 6. Bảng carts
-CREATE TABLE carts (
-    id INT(11) PRIMARY KEY AUTO_INCREMENT,
-    user_id INT(11),
-    created_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id)
-);
-
--- 7. Bảng cart_items
-CREATE TABLE cart_items (
-    id INT(11) PRIMARY KEY AUTO_INCREMENT,
-    cart_id INT(11),
-    product_id INT(11),
-    quantity INT(11),
-    FOREIGN KEY (cart_id) REFERENCES carts(id),
-    FOREIGN KEY (product_id) REFERENCES products(id)
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  order_id INT NOT NULL,
+  product_id INT NOT NULL,
+  qty INT NOT NULL,
+  price DECIMAL(12,2) NOT NULL,
+  FOREIGN KEY (order_id) REFERENCES orders(id),
+  FOREIGN KEY (product_id) REFERENCES products(id)
 );
