@@ -58,7 +58,7 @@ $products = $stmt->fetchAll();
     </div>
 
     <div class="card-body">
-      <div class="title" style="font-weight:bold; height:40px; overflow:hidden;"><?= htmlspecialchars($p['name']) ?></div>
+<div class="title" style="font-weight:bold; height:auto; overflow:visible; margin-bottom: 5px;"><?= htmlspecialchars($p['name']) ?></div>
       <div class="muted">SKU: <?= htmlspecialchars($p['sku'] ?? '-') ?></div>
       <div class="price" style="color:#e11d48; font-weight:bold;"><?= number_format((float)$p['price'], 0, ',', '.') ?> ₫</div>
       <div class="muted">Kho: <?= (int)$p['stock'] ?></div>
