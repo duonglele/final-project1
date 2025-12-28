@@ -16,6 +16,8 @@ $products = $pdo->query("SELECT * FROM products ORDER BY id ASC")->fetchAll();
   <a class="btn primary" href="product_create.php" style="background:#e11d48; color:white;">+ Thêm sản phẩm</a>
   <a class="btn" href="users.php" style="background:white; border:1px solid #ccc;">Quản lý Users</a>
   
+  <a class="btn" href="orders.php" style="background:white; border:1px solid #ccc;">📦 Quản lý Đơn hàng</a>
+  
   <a class="btn" href="/shop.php" style="margin-left: auto; background:#101828; color:white;">
     🛍️ Về Cửa Hàng
   </a>
