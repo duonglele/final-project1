@@ -8,7 +8,7 @@ if (!isset($_SESSION['cart'])) $_SESSION['cart'] = [];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $action = $_POST['action'] ?? '';
 
-  // XỬ LÝ ADD / BUY NOW
+  // 1. XỬ LÝ ADD (THÊM) / BUY NOW (MUA NGAY)
   if ($action === 'add' || $action === 'buy_now') {
     $pid = (int)($_POST['product_id'] ?? 0);
     $qty = (int)($_POST['qty'] ?? 1);
@@ -31,7 +31,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       }
     }
     
-    // Nếu bấm Mua Ngay -> chuyển checkout
     if ($action === 'buy_now') {
         header("Location: checkout.php");
         exit;
@@ -39,17 +38,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header("Location: cart.php"); exit;
   }
 
-  // UPDATE / REMOVE
-  if ($action === 'update') {
+  // 2. XỬ LÝ UPDATE (CẬP NHẬT/XÓA) HOẶC CHECKOUT (THANH TOÁN)
+  if ($action === 'update' || $action === 'go_checkout') {
+    // Nếu bấm xóa từng sản phẩm
     if (!empty($_POST['remove_id'])) {
       unset($_SESSION['cart'][(int)$_POST['remove_id']]);
       header("Location: cart.php"); exit;
     }
+
+    // Cập nhật số lượng mới cho toàn bộ giỏ
     foreach (($_POST['qtys'] ?? []) as $k => $v) {
       $pid = (int)$k; $want = (int)$v;
       if ($want <= 0) { unset($_SESSION['cart'][$pid]); continue; }
       
-      // Check stock
+      // Kiểm tra tồn kho lần nữa
       $st = $pdo->prepare("SELECT stock FROM products WHERE id=?");
       $st->execute([$pid]);
       $row = $st->fetch(PDO::FETCH_ASSOC);
@@ -57,31 +59,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       
       $_SESSION['cart'][$pid] = min((int)$row['stock'], $want);
     }
+    
+    // Nếu nút bấm là "go_checkout" -> Chuyển sang trang thanh toán
+    if ($action === 'go_checkout') {
+        header("Location: checkout.php");
+        exit;
+    }
+
+    // Mặc định tải lại trang giỏ hàng
     header("Location: cart.php"); exit;
   }
 }
 
-// HIỂN THỊ GIỎ
+// LẤY DỮ LIỆU ĐỂ HIỂN THỊ
 $cart = $_SESSION['cart'];
 $items = [];
 $total = 0.0;
+
 if ($cart) {
   $ids = array_keys($cart);
-  $in  = implode(',', array_fill(0, count($ids), '?'));
-  $st  = $pdo->prepare("SELECT * FROM products WHERE id IN ($in)");
-  $st->execute($ids);
-  $products = $st->fetchAll(PDO::FETCH_ASSOC);
-
-  $map = [];
-  foreach ($products as $p) $map[(int)$p['id']] = $p;
-
-  foreach ($cart as $pid => $qty) {
-    if (isset($map[$pid])) {
-      $p = $map[$pid];
-      $line = (float)$p['price'] * (int)$qty;
-      $total += $line;
-      $items[] = ['p' => $p, 'qty' => (int)$qty, 'line' => $line];
-    }
+  if (count($ids) > 0) {
+      $in  = implode(',', array_fill(0, count($ids), '?'));
+      $st  = $pdo->prepare("SELECT * FROM products WHERE id IN ($in)");
+      $st->execute($ids);
+      $products = $st->fetchAll(PDO::FETCH_ASSOC);
+    
+      $map = [];
+      foreach ($products as $p) $map[(int)$p['id']] = $p;
+    
+      foreach ($cart as $pid => $qty) {
+        if (isset($map[$pid])) {
+          $p = $map[$pid];
+          $line = (float)$p['price'] * (int)$qty;
+          $total += $line;
+          $items[] = ['p' => $p, 'qty' => (int)$qty, 'line' => $line];
+        }
+      }
   }
 }
 ?>
@@ -99,6 +112,7 @@ if ($cart) {
 
 <form method="post">
   <input type="hidden" name="action" value="update">
+  
   <table class="table">
     <tr>
       <th>Sản phẩm</th>
@@ -119,7 +133,7 @@ if ($cart) {
         </td>
         <td><?= number_format((float)$it['line'], 0, ',', '.') ?> ₫</td>
         <td>
-          <button class="btn" type="submit" name="remove_id" value="<?= (int)$p['id'] ?>" style="color:red; border-color:red;" onclick="return confirm('Xóa khỏi giỏ?')">Xóa</button>
+           <button class="btn" type="submit" name="remove_id" value="<?= (int)$p['id'] ?>" style="color:red; border-color:red;" onclick="return confirm('Xóa khỏi giỏ?')">Xóa</button>
         </td>
       </tr>
     <?php endforeach; ?>
@@ -127,10 +141,12 @@ if ($cart) {
 
   <div class="summary" style="margin-top:20px; display:flex; justify-content:space-between; align-items:center;">
     <button class="btn" type="submit">Cập nhật số lượng</button>
+    
     <div style="text-align:right;">
         <div class="total" style="font-size:20px; font-weight:bold; margin-bottom:10px;">Tổng cộng: <?= number_format($total, 0, ',', '.') ?> ₫</div>
         <a class="btn" href="shop.php" style="margin-right:10px;">Mua thêm</a>
-        <a class="btn primary" href="checkout.php">Tiến hành Thanh toán</a>
+        
+        <button class="btn primary" type="submit" name="action" value="go_checkout">Tiến hành Thanh toán</button>
     </div>
   </div>
 </form>
