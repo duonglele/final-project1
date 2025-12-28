@@ -78,7 +78,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="alert"><?= htmlspecialchars($err) ?></div>
 <?php endif; ?>
 
-<p>Bạn đang thanh toán cho đơn hàng gồm <b><?= count($cart) ?></b> sản phẩm.</p>
+<?php
+// --- ĐOẠN SỬA ---
+// Tính tổng số lượng thực tế (cộng dồn các value trong array)
+$totalQty = 0;
+foreach ($cart as $q) {
+    $totalQty += (int)$q;
+}
+?>
+<p>Bạn đang thanh toán cho đơn hàng gồm <b><?= $totalQty ?></b> sản phẩm.</p>
 <p>Hình thức: <b>Thanh toán khi nhận hàng (COD)</b> (Demo)</p>
 
 <form method="post" style="margin-top:20px; display:flex; gap:10px;">
