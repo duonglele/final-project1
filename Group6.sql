@@ -53,3 +53,6 @@ CREATE TABLE order_items (
   FOREIGN KEY (order_id) REFERENCES orders(id),
   FOREIGN KEY (product_id) REFERENCES products(id)
 );
+ALTER TABLE orders 
+MODIFY COLUMN status ENUM('pending', 'paid', 'shipping', 'completed', 'cancelled') 
+DEFAULT 'pending';
