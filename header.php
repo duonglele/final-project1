@@ -1,5 +1,13 @@
 <?php
 // includes/header.php
+
+// 1. Ép buộc sử dụng HTTPS (Giữ nguyên logic cũ của bạn)
+if (empty($_SERVER['HTTPS']) || $_SERVER['HTTPS'] === "off") {
+    $location = 'https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+    header('Location: ' . $location);
+    exit;
+}
+
 require_once __DIR__ . "/auth.php";
 require_once __DIR__ . "/helpers.php";
 ?>
@@ -22,6 +30,8 @@ require_once __DIR__ . "/helpers.php";
 
       <?php if (current_user()): ?>
         <span class="chip"><?= e(current_user()['name']) ?> (<?= e(current_user()['role']) ?>)</span>
+
+        <a href="/order_history.php">Lịch sử đơn hàng</a>
 
         <?php if ((current_user()['role'] ?? '') === 'admin'): ?>
           <a href="/admin/dashboard.php">Admin</a>
